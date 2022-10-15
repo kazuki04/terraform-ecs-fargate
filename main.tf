@@ -37,3 +37,9 @@ module "network" {
   management_subnets     = var.management_subnets
   vpc_endpoints          = var.vpc_endpoints
 }
+
+module "ecr" {
+  source                 = "./modules/ecr"
+  service_name           = local.service_name
+  environment_identifier = local.environment_identifier
+}
