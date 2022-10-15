@@ -16,62 +16,62 @@ output "vpc_id" {
 # Subnet
 ################################################################################
 
-output "ingress_subnet_id" {
+output "ingress_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_route_table.ingress.id
+  value       = aws_route_table.ingress[*].id
 }
 
-output "ingress_subnet_arn" {
+output "ingress_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_route_table.ingress.arn
+  value       = aws_route_table.ingress[*].arn
 }
 
-output "app_subnet_id" {
+output "app_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_route_table.app.id
+  value       = aws_route_table.app[*].id
 }
 
-output "app_subnet_arn" {
+output "app_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_route_table.app.arn
+  value       = aws_route_table.app[*].arn
 }
 
-output "db_subnet_id" {
+output "db_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_route_table.db.id
+  value       = aws_route_table.db[*].id
 }
 
-output "db_subnet_arn" {
+output "db_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_route_table.db.arn
+  value       = aws_route_table.db[*].arn
 }
 
-output "egress_subnet_id" {
+output "egress_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_route_table.egress.id
+  value       = aws_route_table.egress[*].id
 }
 
-output "egress_subnet_arn" {
+output "egress_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_route_table.egress.arn
+  value       = aws_route_table.egress[*].arn
 }
 
-output "code_build_subnet_id" {
+output "code_build_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_route_table.code_build.id
+  value       = aws_route_table.code_build[*].id
 }
 
-output "code_build_subnet_arn" {
+output "code_build_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_route_table.code_build.arn
+  value       = aws_route_table.code_build[*].arn
 }
 
-output "management_subnet_id" {
+output "management_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_route_table.management.id
+  value       = aws_route_table.management[*].id
 }
 
-output "management_subnet_arn" {
+output "management_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_route_table.management.arn
+  value       = aws_route_table.management[*].arn
 }
