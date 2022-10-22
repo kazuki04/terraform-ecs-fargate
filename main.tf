@@ -58,6 +58,16 @@ module "kms" {
   environment_identifier = local.environment_identifier
 }
 
+module "s3" {
+  source = "./modules/s3"
+  service_name           = local.service_name
+  environment_identifier = local.environment_identifier
+
+  kms_key_arn            = module.kms.arn
+  code_build_role_arn    = module.iam.code_build_role_arn
+  code_pipeline_role_arn = module.iam.code_pipeline_role_arn
+}
+
 module "alb" {
   source                 = "./modules/alb"
   service_name           = local.service_name
@@ -87,3 +97,15 @@ module "code_build" {
   runtime_version_for_code_build = var.runtime_version_for_code_build
 }
 
+# module "code_pipeline" {
+#   source                 = "./modules/code_pipeline"
+#   service_name           = local.service_name
+#   environment_identifier = local.environment_identifier
+
+#   vpc_id                         = module.network.vpc_id
+#   code_build_subnet_ids          = module.network.code_build_subnet_ids
+#   sg_code_build_id               = module.security_group.sg_code_build_id
+#   api_repository_url             = module.ecr.api_repository_url
+#   service_role_arn               = module.iam.code_build_role_arn
+#   runtime_version_for_code_build = var.runtime_version_for_code_build
+# }
