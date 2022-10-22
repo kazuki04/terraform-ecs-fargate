@@ -81,3 +81,21 @@ variable "vpc_endpoints" {
   type        = list(string)
   default     = []
 }
+
+variable "api_container_cpu" {
+  description = "The CPU of api container"
+  type        = number
+  default     = 256
+}
+
+variable "api_container_memory" {
+  description = "The memory of api container"
+  type        = number
+  default     = 512
+}
+
+variable "runtime_version_for_code_build" {
+  description = "The run time version for CodeBuild Project. For example, nodejs: 14"
+  type        = string
+  default     = ""
+}

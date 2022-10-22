@@ -61,3 +61,33 @@ resource "aws_security_group" "ingress_lb" {
     Name = "${var.service_name}-${var.environment_identifier}-sg-alb-ingress"
   }
 }
+
+
+################################################################################
+# Security Group for CodeBuild
+################################################################################
+resource "aws_security_group" "code_build" {
+  name        = "${var.service_name}-${var.environment_identifier}-sg-code_build"
+  description = "The Security group for CodeBuild project"
+  vpc_id      = data.aws_vpc.vpc.id
+
+  egress = [
+    {
+      from_port        = 0
+      to_port          = 0
+      cidr_blocks      = [
+        "0.0.0.0/0"
+      ]
+      description      = "Allow traffic to Internet"
+      protocol         = "-1"
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = false
+    }
+  ]
+
+  tags = {
+    Name = "${var.service_name}-${var.environment_identifier}-sg-code_build"
+  }
+}
