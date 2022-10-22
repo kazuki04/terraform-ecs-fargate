@@ -38,6 +38,24 @@ module "network" {
   vpc_endpoints          = var.vpc_endpoints
 }
 
+module "security_group" {
+  source                 = "./modules/security_group"
+  service_name           = local.service_name
+  environment_identifier = local.environment_identifier
+
+  vpc_id  = module.network.vpc_id
+}
+
+module "alb" {
+  source                 = "./modules/alb"
+  service_name           = local.service_name
+  environment_identifier = local.environment_identifier
+
+  vpc_id  = module.network.vpc_id
+  subnets = module.network.ingress_subnet_ids
+  sg_ingress_lb_id = module.security_group.sg_ingress_lb_id
+}
+
 module "ecr" {
   source                 = "./modules/ecr"
   service_name           = local.service_name
