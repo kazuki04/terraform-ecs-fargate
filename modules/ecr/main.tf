@@ -27,7 +27,20 @@ resource "aws_ecr_repository" "api" {
   }
 }
 
+resource "aws_ecr_repository" "nginx" {
+  name = "${var.service_name}-${var.environment_identifier}-ecr-nginx"
+
+  tags = {
+    Name = "${var.service_name}-${var.environment_identifier}-ecr-nginx"
+  }
+}
+
 resource "aws_ecr_lifecycle_policy" "api" {
   repository = aws_ecr_repository.api.name
+  policy     = local.image_expire_policy
+}
+
+resource "aws_ecr_lifecycle_policy" "nginx" {
+  repository = aws_ecr_repository.nginx.name
   policy     = local.image_expire_policy
 }
