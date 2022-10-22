@@ -46,6 +46,12 @@ module "security_group" {
   vpc_id  = module.network.vpc_id
 }
 
+module "kms" {
+  source = "./modules/kms"
+  service_name           = local.service_name
+  environment_identifier = local.environment_identifier
+}
+
 module "alb" {
   source                 = "./modules/alb"
   service_name           = local.service_name
