@@ -66,8 +66,8 @@ resource "aws_security_group" "ingress_lb" {
 ################################################################################
 # Security Group for CodeBuild
 ################################################################################
-resource "aws_security_group" "code_build" {
-  name        = "${var.service_name}-${var.environment_identifier}-sg-code_build"
+resource "aws_security_group" "codebuild" {
+  name        = "${var.service_name}-${var.environment_identifier}-sg-codebuild"
   description = "The Security group for CodeBuild project"
   vpc_id      = data.aws_vpc.vpc.id
 
@@ -88,6 +88,6 @@ resource "aws_security_group" "code_build" {
   ]
 
   tags = {
-    Name = "${var.service_name}-${var.environment_identifier}-sg-code_build"
+    Name = "${var.service_name}-${var.environment_identifier}-sg-codebuild"
   }
 }

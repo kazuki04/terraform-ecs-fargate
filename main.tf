@@ -39,7 +39,7 @@ module "network" {
   app_subnets            = var.app_subnets
   db_subnets             = var.db_subnets
   egress_subnets         = var.egress_subnets
-  code_build_subnets     = var.code_build_subnets
+  codebuild_subnets     = var.codebuild_subnets
   management_subnets     = var.management_subnets
   vpc_endpoints          = var.vpc_endpoints
 }
@@ -64,8 +64,8 @@ module "s3" {
   environment_identifier = local.environment_identifier
 
   kms_key_arn            = module.kms.arn
-  code_build_role_arn    = module.iam.code_build_role_arn
-  code_pipeline_role_arn = module.iam.code_pipeline_role_arn
+  codebuild_role_arn    = module.iam.codebuild_role_arn
+  codepipeline_role_arn = module.iam.codepipeline_role_arn
 }
 
 module "alb" {
@@ -84,28 +84,28 @@ module "ecr" {
   environment_identifier = local.environment_identifier
 }
 
-module "code_build" {
-  source                 = "./modules/code_build"
+module "codebuild" {
+  source                 = "./modules/codebuild"
   service_name           = local.service_name
   environment_identifier = local.environment_identifier
 
   vpc_id                         = module.network.vpc_id
-  code_build_subnet_ids          = module.network.code_build_subnet_ids
-  sg_code_build_id               = module.security_group.sg_code_build_id
+  codebuild_subnet_ids          = module.network.codebuild_subnet_ids
+  sg_codebuild_id               = module.security_group.sg_codebuild_id
   api_repository_url             = module.ecr.api_repository_url
-  service_role_arn               = module.iam.code_build_role_arn
-  runtime_version_for_code_build = var.runtime_version_for_code_build
+  service_role_arn               = module.iam.codebuild_role_arn
+  runtime_version_for_codebuild = var.runtime_version_for_codebuild
 }
 
-# module "code_pipeline" {
-#   source                 = "./modules/code_pipeline"
+# module "codepipeline" {
+#   source                 = "./modules/codepipeline"
 #   service_name           = local.service_name
 #   environment_identifier = local.environment_identifier
 
 #   vpc_id                         = module.network.vpc_id
-#   code_build_subnet_ids          = module.network.code_build_subnet_ids
-#   sg_code_build_id               = module.security_group.sg_code_build_id
+#   codebuild_subnet_ids          = module.network.codebuild_subnet_ids
+#   sg_codebuild_id               = module.security_group.sg_codebuild_id
 #   api_repository_url             = module.ecr.api_repository_url
-#   service_role_arn               = module.iam.code_build_role_arn
-#   runtime_version_for_code_build = var.runtime_version_for_code_build
+#   service_role_arn               = module.iam.codebuild_role_arn
+#   runtime_version_for_codebuild = var.runtime_version_for_codebuild
 # }

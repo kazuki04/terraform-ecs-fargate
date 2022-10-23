@@ -109,16 +109,16 @@ resource "aws_route_table" "egress" {
 # CodeBuild routes
 ################################################################################
 
-resource "aws_route_table" "code_build" {
+resource "aws_route_table" "codebuild" {
   vpc_id = local.vpc_id
 
   tags = {
-    Name = "${var.service_name}-${var.environment_identifier}-rtb-code_build"
+    Name = "${var.service_name}-${var.environment_identifier}-rtb-codebuild"
   }
 }
 
-resource "aws_route" "code_build_nat_gateway" {
-  route_table_id         = aws_route_table.code_build.id
+resource "aws_route" "codebuild_nat_gateway" {
+  route_table_id         = aws_route_table.codebuild.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.this.id
 
@@ -232,16 +232,16 @@ resource "aws_subnet" "egress" {
 # CodeBuild subnet
 ################################################################################
 
-resource "aws_subnet" "code_build" {
-  count = length(var.code_build_subnets) > 0 ? length(var.code_build_subnets) : 0
+resource "aws_subnet" "codebuild" {
+  count = length(var.codebuild_subnets) > 0 ? length(var.codebuild_subnets) : 0
 
   vpc_id                          = local.vpc_id
-  cidr_block                      = var.code_build_subnets[count.index]
+  cidr_block                      = var.codebuild_subnets[count.index]
   availability_zone               = length(regexall("^[a-z]{2}-", element(var.azs, count.index))) > 0 ? element(var.azs, count.index) : null
 
   tags = {
     Name = format(
-    "${var.service_name}-${var.environment_identifier}-subnet-code_build-%s",
+    "${var.service_name}-${var.environment_identifier}-subnet-codebuild-%s",
     element(var.azs, count.index),
     )
   }
@@ -298,11 +298,11 @@ resource "aws_route_table_association" "egress" {
   route_table_id = aws_route_table.egress.id
 }
 
-resource "aws_route_table_association" "code_build" {
-  count = length(var.code_build_subnets) > 0 ? length(var.code_build_subnets) : 0
+resource "aws_route_table_association" "codebuild" {
+  count = length(var.codebuild_subnets) > 0 ? length(var.codebuild_subnets) : 0
 
-  subnet_id      = element(aws_subnet.code_build[*].id, count.index)
-  route_table_id = aws_route_table.code_build.id
+  subnet_id      = element(aws_subnet.codebuild[*].id, count.index)
+  route_table_id = aws_route_table.codebuild.id
 }
 
 ################################################################################

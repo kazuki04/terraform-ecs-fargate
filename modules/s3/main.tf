@@ -50,8 +50,8 @@ data "aws_iam_policy_document" "artifact" {
     principals {
       type        = "AWS"
       identifiers = [
-        var.code_build_role_arn,
-        var.code_pipeline_role_arn
+        var.codebuild_role_arn,
+        var.codepipeline_role_arn
       ]
     }
 
@@ -71,8 +71,8 @@ data "aws_iam_policy_document" "artifact" {
     principals {
       type        = "AWS"
       identifiers = [
-        var.code_build_role_arn,
-        var.code_pipeline_role_arn
+        var.codebuild_role_arn,
+        var.codepipeline_role_arn
       ]
     }
 

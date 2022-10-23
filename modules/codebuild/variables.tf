@@ -15,13 +15,13 @@ variable "vpc_id" {
   default     = ""
 }
 
-variable "code_build_subnet_ids" {
+variable "codebuild_subnet_ids" {
   description = "The subnet for CodeBuild"
   type        = list(string)
   default     = []
 }
 
-variable "sg_code_build_id" {
+variable "sg_codebuild_id" {
   description = "ID of the security group."
   type        = string
   default     = ""
@@ -33,7 +33,7 @@ variable "service_role_arn" {
   default     = ""
 }
 
-variable "runtime_version_for_code_build" {
+variable "runtime_version_for_codebuild" {
   description = "The run time version for CodeBuild Project. For example, nodejs: 14"
   type        = string
   default     = ""

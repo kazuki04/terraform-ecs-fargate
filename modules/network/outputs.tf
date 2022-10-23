@@ -56,14 +56,14 @@ output "egress_subnet_arns" {
   value       = aws_subnet.egress[*].arn
 }
 
-output "code_build_subnet_ids" {
+output "codebuild_subnet_ids" {
   description = "The ID of the subnet"
-  value       = aws_subnet.code_build[*].id
+  value       = aws_subnet.codebuild[*].id
 }
 
-output "code_build_subnet_arns" {
+output "codebuild_subnet_arns" {
   description = "The ARN of the subnet."
-  value       = aws_subnet.code_build[*].arn
+  value       = aws_subnet.codebuild[*].arn
 }
 
 output "management_subnet_ids" {

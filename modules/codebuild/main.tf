@@ -18,7 +18,7 @@ resource "aws_codebuild_project" "api" {
     
     environment_variable {
       name  = "RUNTIME_VERSION"
-      value = var.runtime_version_for_code_build
+      value = var.runtime_version_for_codebuild
     }
 
     environment_variable {
@@ -34,7 +34,7 @@ resource "aws_codebuild_project" "api" {
 
   logs_config {
     cloudwatch_logs {
-      group_name  = "/aws/codebuild/${var.service_name}-${var.environment_identifier}-code_build-ecs"
+      group_name  = "/aws/codebuild/${var.service_name}-${var.environment_identifier}-codebuild-ecs"
       stream_name = "cbproject-api"
     }
   }
@@ -81,11 +81,11 @@ resource "aws_codebuild_project" "api" {
     vpc_id = var.vpc_id
 
     subnets = [
-      var.code_build_subnet_ids[0]
+      var.codebuild_subnet_ids[0]
     ]
 
     security_group_ids = [
-      var.sg_code_build_id
+      var.sg_codebuild_id
     ]
   }
 
@@ -95,6 +95,6 @@ resource "aws_codebuild_project" "api" {
 }
 
 resource "aws_cloudwatch_log_group" "ecs_cluster_container_insight" {
-  name = "/aws/codebuild/${var.service_name}-${var.environment_identifier}-code_build-ecs"
+  name = "/aws/codebuild/${var.service_name}-${var.environment_identifier}-codebuild-ecs"
   retention_in_days = 90
 }

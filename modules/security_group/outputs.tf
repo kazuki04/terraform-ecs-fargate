@@ -4,7 +4,7 @@ output "sg_ingress_lb_id" {
 }
 
 
-output "sg_code_build_id" {
+output "sg_codebuild_id" {
   description = "ID of the security group."
-  value       = aws_security_group.code_build.id
+  value       = aws_security_group.codebuild.id
 }

@@ -50,7 +50,7 @@ variable "egress_subnets" {
   default     = []
 }
 
-variable "code_build_subnets" {
+variable "codebuild_subnets" {
   description = "A list of private subnets for codebuild inside the VPC"
   type        = list(string)
   default     = []

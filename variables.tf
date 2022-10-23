@@ -64,7 +64,7 @@ variable "egress_subnets" {
   default     = []
 }
 
-variable "code_build_subnets" {
+variable "codebuild_subnets" {
   description = "A list of private subnets for codebuild inside the VPC"
   type        = list(string)
   default     = []
@@ -94,7 +94,7 @@ variable "api_container_memory" {
   default     = 512
 }
 
-variable "runtime_version_for_code_build" {
+variable "runtime_version_for_codebuild" {
   description = "The run time version for CodeBuild Project. For example, nodejs: 14"
   type        = string
   default     = ""

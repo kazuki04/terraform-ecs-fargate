@@ -1,8 +1,8 @@
 ################################################################################
 # IAM resources for CodeBuild
 ################################################################################
-resource "aws_iam_role" "code_build" {
-  name = "${var.service_name}-${var.environment_identifier}-role-code_build"
+resource "aws_iam_role" "codebuild" {
+  name = "${var.service_name}-${var.environment_identifier}-role-codebuild"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -17,15 +17,15 @@ resource "aws_iam_role" "code_build" {
     ]
   })
 
-  managed_policy_arns = [ aws_iam_policy.code_build.id ]
+  managed_policy_arns = [ aws_iam_policy.codebuild.id ]
 
   tags = {
-    Name = "${var.service_name}-${var.environment_identifier}-role-code_build"
+    Name = "${var.service_name}-${var.environment_identifier}-role-codebuild"
   }
 }
 
-resource "aws_iam_policy" "code_build" {
-  name = "${var.service_name}-${var.environment_identifier}-policy-code_build"
+resource "aws_iam_policy" "codebuild" {
+  name = "${var.service_name}-${var.environment_identifier}-policy-codebuild"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -57,8 +57,8 @@ resource "aws_iam_policy" "code_build" {
 ################################################################################
 # IAM resources for CodePipeline
 ################################################################################
-resource "aws_iam_role" "code_pipeline" {
-  name = "${var.service_name}-${var.environment_identifier}-role-code_pipeline"
+resource "aws_iam_role" "codepipeline" {
+  name = "${var.service_name}-${var.environment_identifier}-role-codepipeline"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -73,16 +73,16 @@ resource "aws_iam_role" "code_pipeline" {
     ]
   })
 
-  managed_policy_arns  = [ aws_iam_policy.code_pipeline.id ]
+  managed_policy_arns  = [ aws_iam_policy.codepipeline.id ]
   max_session_duration = 3600
 
   tags = {
-    Name = "${var.service_name}-${var.environment_identifier}-role-code_pipeline"
+    Name = "${var.service_name}-${var.environment_identifier}-role-codepipeline"
   }
 }
 
-resource "aws_iam_policy" "code_pipeline" {
-  name = "${var.service_name}-${var.environment_identifier}-policy-code_pipeline"
+resource "aws_iam_policy" "codepipeline" {
+  name = "${var.service_name}-${var.environment_identifier}-policy-codepipeline"
 
   policy = jsonencode({
     Version = "2012-10-17"
