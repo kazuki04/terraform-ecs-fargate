@@ -35,7 +35,7 @@ resource "aws_s3_bucket" "terraform_backend_remote_state" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "example" {
+resource "aws_s3_bucket_public_access_block" "terraform_backend_remote_state" {
   bucket = aws_s3_bucket.terraform_backend_remote_state.id
 
   block_public_acls       = true
@@ -61,7 +61,6 @@ resource "aws_s3_bucket_versioning" "terraform_backend_remote_state" {
     status = "Enabled"
   }
 }
-
 
 ################################################################################
 # DynamoDB
