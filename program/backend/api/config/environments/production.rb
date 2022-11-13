@@ -1,4 +1,5 @@
 require "active_support/core_ext/integer/time"
+require 'log_formatter/json_log_formatter'
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -70,6 +71,15 @@ Rails.application.configure do
 
   # Use default logging formatter so that PID and timestamp are not suppressed.
   config.log_formatter = ::Logger::Formatter.new
+  config.logger = Logger.new(STDOUT)
+  config.logger.formatter = LogFormatter::JSONLogFormatter.new
+
+  config.hosts = [
+    IPAddr.new('0.0.0.0/0'),   # All IPv4 addresses.
+    IPAddr.new('::/0'),        # All IPv6 addresses.
+    'localhost',               # The localhost reserved domain.
+    ENV["CLOUDFRONT_HOST"]
+  ]
 
   # Use a different logger for distributed setups.
   # require "syslog/logger"

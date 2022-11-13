@@ -1,0 +1,791 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Terraform pipeline template.
+
+Parameters:
+  ServiceName:
+    Type: String
+    Description: The name of service.
+  EnvironmentIdentifier:
+    Type: String
+    Description: The environment identifier.
+  RepositoryName:
+    Type: String
+    Description: "The name of repository."
+    Default: ""
+  BranchName:
+    Type: String
+    Description: "The name of branch that releases AWS resources."
+    Default: ""
+  CodeCommitArn:
+    Type: String
+    Description: "The arn of CodeCommit for Source of Terraform CodePipeline."
+    Default: ""
+  TerraformVersion:
+    Type: String
+    Description: "Enter the version of Terraform that use with CodeBuild."
+    Default: "1.3.1"
+
+Mappings:
+  CWLogs:
+    Build:
+      RetentionInDays: 90
+
+Resources:
+################################################################################
+# KMS for Terraform Pipeline
+################################################################################
+  KmsTfPipeline:
+    Type: AWS::KMS::Key
+    Properties:
+      Description:
+        Fn::Sub: KMS key for Terraform Pipeline of ${ServiceName} in ${EnvironmentIdentifier}"
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id:
+          Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-policy-kms-terraform-pipeline"
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Sub: arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+  KmsAliasTfPipeline:
+    DependsOn:
+      - KmsTfPipeline
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName:
+        Fn::Sub: "alias/${ServiceName}-${EnvironmentIdentifier}-kms-terraform-pipeline"
+      TargetKeyId:
+        Ref: KmsTfPipeline
+
+################################################################################
+# S3
+################################################################################
+  TfPipelineArtifactsStoreBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-tf-pipeline-artifacts-store"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "aws:kms"
+              KMSMasterKeyID:
+                Fn::GetAtt: KmsTfPipeline.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-tf-pipeline-artifacts-store"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+  TfPipelineTfvarsBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-tf-pipeline-tfvars"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "aws:kms"
+              KMSMasterKeyID:
+                Fn::GetAtt: KmsTfPipeline.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-tf-pipeline-tfvars"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+  TfPipelineTfBackendBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-bucket-tf-pipeline-tf-backend"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "aws:kms"
+              KMSMasterKeyID:
+                Fn::GetAtt: KmsTfPipeline.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-bucket-tf-pipeline-tf-backend"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+  BucketPolicyArtifacts:
+      Type: AWS::S3::BucketPolicy
+      Properties: 
+        Bucket:
+          Ref: TfPipelineArtifactsStoreBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: "AllowSSLRequestsOnly"
+              Effect: "Deny"
+              Principal: "*"
+              Action: "s3:*"
+              Resource:
+                - Fn::GetAtt: TfPipelineArtifactsStoreBucket.Arn
+                - Fn::Sub:
+                  - "${BucketArn}/*"
+                  - BucketArn:
+                      Fn::GetAtt: TfPipelineArtifactsStoreBucket.Arn
+              Condition:
+                Bool:
+                  aws:SecureTransport: "false"
+
+################################################################################
+# DynamoDB
+################################################################################
+  TfPipelineDDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-ddb-tf-pipeline-state-lock"
+      KeySchema:
+        - AttributeName: "LockID"
+          KeyType: "HASH"
+      AttributeDefinitions:
+        - AttributeName: "LockID"
+          AttributeType: "S"
+      BillingMode: "PAY_PER_REQUEST"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        KMSMasterKeyId:
+          Fn::GetAtt: KmsTfPipeline.Arn
+        SSEEnabled: true
+        SSEType: "KMS"
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-ddb-tf-pipeline-state-lock"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+################################################################################
+# CloudWatch Logs
+################################################################################
+  TfCbprojectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: '/aws/codebuild/${EnvironmentIdentifier}-cbproject-tf'
+      RetentionInDays:
+        Fn::FindInMap: ["CWLogs", "Build", "RetentionInDays"]
+
+################################################################################
+# CodeBuild
+################################################################################
+  TfRoleCbproject:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-role-tf-cbproject"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-policy-tf-cbproject"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: PasRole
+                Action:
+                  - iam:PassRole
+                Effect: Allow
+                Resource:
+                  - '*'
+              - Sid: IAM
+                Action:
+                  - iam:AddRoleToInstanceProfile
+                  - iam:AddUserToGroup
+                  - iam:AttachGroupPolicy
+                  - iam:AttachRolePolicy
+                  - iam:CreateAccessKey
+                  - iam:CreateGroup
+                  - iam:CreatePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:CreateRole
+                  - iam:CreateServiceLinkedRole
+                  - iam:CreateServiceSpecificCredential
+                  - iam:CreateUser
+                  - iam:DeleteAccessKey
+                  - iam:DeleteGroup
+                  - iam:DeleteGroupPolicy
+                  - iam:DeletePolicy
+                  - iam:DeletePolicyVersion
+                  - iam:DeleteRole
+                  - iam:DeleteRolePermissionsBoundary
+                  - iam:DeleteRolePolicy
+                  - iam:DeleteServiceLinkedRole
+                  - iam:DeleteUser
+                  - iam:DetachGroupPolicy
+                  - iam:DetachRolePolicy
+                  - iam:GenerateCredentialReport
+                  - iam:GenerateServiceLastAccessedDetails
+                  - iam:Get*
+                  - iam:List*
+                  - iam:PutGroupPolicy
+                  - iam:PutRolePermissionsBoundary
+                  - iam:PutRolePolicy
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:RemoveUserFromGroup
+                  - iam:SetDefaultPolicyVersion
+                  - iam:SimulateCustomPolicy
+                  - iam:SimulatePrincipalPolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:UpdateAccessKey
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:UpdateGroup
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
+                  - iam:UpdateUser
+                Effect: Allow
+                Resource:
+                  - '*'
+              - Sid: Deploy
+                Effect: Allow
+                Action:
+                  - codecommit:*
+                  - codebuild:*
+                  - codedeploy:*
+                  - codepipeline:*
+                Resource:
+                  - '*'
+              - Sid: Resources
+                Effect: Allow
+                Action:
+                  - s3:*
+                  - waf-regional:*
+                  - waf:*
+                  - wafv2:*
+                  - lambda:*
+                  - ec2:*
+                  - elasticloadbalancing:*
+                  - ecs:*
+                  - ecr:*
+                  - application-autoscaling:*
+                  - acm:*
+                  - route53:*
+                  - route53domains:*
+                  - route53resolver:*
+                  - cloudfront:*
+                  - cognito-idp:*
+                  - events:*
+                  - glue:*
+                  - rds:*
+                  - sns:*
+                  - ses:*
+                  - kms:*
+                  - ssm:*
+                  - states:*
+                  - logs:*
+                  - cloudwatch:*
+                  - cloudtrail:*
+                  - guardduty:*
+                  - pi:*
+                  - secretsmanager:*
+                  - sqs:*
+                  - dynamodb:*
+                Resource:
+                  - '*'
+
+  CbProjectTfsec:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-cbproject-tf-sec"
+      Description: "Execute terraform plan command."
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Environment:
+        Type: "LINUX_CONTAINER"
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+        ImagePullCredentialsType: "CODEBUILD"
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: "SERVICE_NAME"
+            Type: PLAINTEXT
+            Value:
+              Ref: ServiceName
+          - Name: "ENVIRONMENT_IDENTIFIER"
+            Type: PLAINTEXT
+            Value:
+              Ref: EnvironmentIdentifier
+          - Name: "TF_VERSION"
+            Type: PLAINTEXT
+            Value:
+              Ref: TerraformVersion
+          - Name: "TFVARS_BUCKET"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineTfvarsBucket 
+      LogsConfig:
+        CloudWatchLogs:
+          Status: "ENABLED"
+          GroupName:
+            Ref: TfCbprojectLogGroup
+      EncryptionKey:
+        Fn::GetAtt: KmsTfPipeline.Arn
+      ResourceAccessRole:
+        Fn::GetAtt: TfRoleCbproject.Arn
+      ServiceRole:
+        Fn::GetAtt: TfRoleCbproject.Arn
+      TimeoutInMinutes: 60
+      Visibility: "PRIVATE"
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |
+          version: 0.2
+          env:
+            exported-variables:
+              - BuildID
+              - BuildTag
+          phases:
+            install:
+              runtime-versions:
+                golang: 1.18
+              commands:
+                - echo Install phase...
+                - echo Install Terraform...
+                - "git clone https://github.com/tfutils/tfenv.git ~/.tfenv"
+                - "ln -s ~/.tfenv/bin/* /usr/local/bin"
+                - "tfenv install $TF_VERSION"
+                - "tfenv use $TF_VERSION"
+                - echo Install tfsec...
+                - "go install github.com/aquasecurity/tfsec/cmd/tfsec@v1.28.1"
+            pre_build:
+              commands:
+                - echo PreBuild phase...
+                - cd ${CODEBUILD_SRC_DIR}/infrastructure
+                - echo Download tfvars file...
+                - aws s3 cp s3://$TFVARS_BUCKET/$SERVICE_NAME/$ENVIRONMENT_IDENTIFIER/terraform.tfvars ./
+            build:
+              commands:
+                - echo Build phase...
+                - echo tfsec...
+                - cd ${CODEBUILD_SRC_DIR}/infrastructure
+                - tfsec . --minimum-severity CRITICAL
+            post_build:
+              commands:
+                - "export BuildID=`echo $CODEBUILD_BUILD_ID | cut -d: -f1`"
+                - "export BuildTag=`echo $CODEBUILD_BUILD_ID | cut -d: -f2`"
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-cbproject-tf-sec"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+  CbProjectTfplan:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-cbproject-tf-plan"
+      Description: "Execute terraform plan command."
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Environment:
+        Type: "LINUX_CONTAINER"
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+        ImagePullCredentialsType: "CODEBUILD"
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: "SERVICE_NAME"
+            Type: PLAINTEXT
+            Value:
+              Ref: ServiceName
+          - Name: "ENVIRONMENT_IDENTIFIER"
+            Type: PLAINTEXT
+            Value:
+              Ref: EnvironmentIdentifier
+          - Name: "TF_VERSION"
+            Type: PLAINTEXT
+            Value:
+              Ref: TerraformVersion
+          - Name: "TFVARS_BUCKET"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineTfvarsBucket 
+          - Name: "TERRAFORM_BACKEND_BUCKET"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineTfBackendBucket
+          - Name: "TERRAFORM_BACKEND_DDB"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineDDBTable
+      LogsConfig:
+        CloudWatchLogs:
+          Status: "ENABLED"
+          GroupName:
+            Ref: TfCbprojectLogGroup
+      EncryptionKey:
+        Fn::GetAtt: KmsTfPipeline.Arn
+      ResourceAccessRole:
+        Fn::GetAtt: TfRoleCbproject.Arn
+      ServiceRole:
+        Fn::GetAtt: TfRoleCbproject.Arn
+      TimeoutInMinutes: 60
+      Visibility: "PRIVATE"
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |
+          version: 0.2
+          env:
+            exported-variables:
+              - BuildID
+              - BuildTag
+          phases:
+            install:
+              runtime-versions:
+                golang: 1.18
+              commands:
+                - echo Install phase...
+                - echo Install Terraform...
+                - "git clone https://github.com/tfutils/tfenv.git ~/.tfenv"
+                - "ln -s ~/.tfenv/bin/* /usr/local/bin"
+                - "tfenv install $TF_VERSION"
+                - "tfenv use $TF_VERSION"
+            pre_build:
+              commands:
+                - echo PreBuild phase...
+                - cd ${CODEBUILD_SRC_DIR}/infrastructure
+                - echo Download tfvars file...
+                - aws s3 cp s3://$TFVARS_BUCKET/$SERVICE_NAME/$ENVIRONMENT_IDENTIFIER/terraform.tfvars ./
+                - echo terraform init...
+                - ls -a
+                - terraform init -input=false -no-color
+                  -backend-config="bucket=$TERRAFORM_BACKEND_BUCKET"
+                  -backend-config="key=$SERVICE_NAME/infra/$AWS_REGION/$ENVIRONMENT_IDENTIFIER/terraform.tfstate"
+                  -backend-config="region=$AWS_REGION"
+                  -backend-config="dynamodb_table=$TERRAFORM_BACKEND_DDB"
+            build:
+              commands:
+                - echo Build phase...
+                - cd ${CODEBUILD_SRC_DIR}/infrastructure
+                - "terraform plan -input=false -no-color"
+            post_build:
+              commands:
+                - "export BuildID=`echo $CODEBUILD_BUILD_ID | cut -d: -f1`"
+                - "export BuildTag=`echo $CODEBUILD_BUILD_ID | cut -d: -f2`"
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-cbproject-tf-plan"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+  CbProjectTfapply:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-cbproject-tf-apply"
+      Description: "Execute terraform apply command."
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Cache:
+        Type: "LOCAL"
+        Modes:
+          - "LOCAL_DOCKER_LAYER_CACHE"
+      Environment:
+        Type: "LINUX_CONTAINER"
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+        ImagePullCredentialsType: "CODEBUILD"
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: "SERVICE_NAME"
+            Type: PLAINTEXT
+            Value:
+              Ref: ServiceName
+          - Name: "ENVIRONMENT_IDENTIFIER"
+            Type: PLAINTEXT
+            Value:
+              Ref: EnvironmentIdentifier
+          - Name: "TF_VERSION"
+            Type: PLAINTEXT
+            Value:
+              Ref: TerraformVersion
+          - Name: "TFVARS_BUCKET"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineTfvarsBucket
+          - Name: "TERRAFORM_BACKEND_BUCKET"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineTfBackendBucket
+          - Name: "TERRAFORM_BACKEND_DDB"
+            Type: PLAINTEXT
+            Value:
+              Ref: TfPipelineDDBTable
+      LogsConfig:
+        CloudWatchLogs:
+          Status: "ENABLED"
+          GroupName:
+            Ref: TfCbprojectLogGroup
+      EncryptionKey:
+        Fn::GetAtt: KmsTfPipeline.Arn
+      ResourceAccessRole:
+        Fn::GetAtt: TfRoleCbproject.Arn
+      ServiceRole:
+        Fn::GetAtt: TfRoleCbproject.Arn
+      TimeoutInMinutes: 60
+      Visibility: "PRIVATE"
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                golang: 1.18
+              commands:
+                - echo Install phase...
+                - echo Install Terraform...
+                - "git clone https://github.com/tfutils/tfenv.git ~/.tfenv"
+                - "ln -s ~/.tfenv/bin/* /usr/local/bin"
+                - "tfenv install $TF_VERSION"
+                - "tfenv use $TF_VERSION"
+            pre_build:
+              commands:
+                - echo PreBuild phase...
+                - cd ${CODEBUILD_SRC_DIR}/infrastructure
+                - echo Download tfvars file...
+                - aws s3 cp s3://$TFVARS_BUCKET/$SERVICE_NAME/$ENVIRONMENT_IDENTIFIER/terraform.tfvars ./
+                - echo terraform init...
+                - ls -a
+                - terraform init -input=false -no-color
+                  -backend-config="bucket=$TERRAFORM_BACKEND_BUCKET"
+                  -backend-config="key=$SERVICE_NAME/infra/$AWS_REGION/$ENVIRONMENT_IDENTIFIER/terraform.tfstate"
+                  -backend-config="region=$AWS_REGION"
+                  -backend-config="dynamodb_table=$TERRAFORM_BACKEND_DDB"
+            build:
+              commands:
+                - echo Build phase...
+                - cd ${CODEBUILD_SRC_DIR}/infrastructure
+                - echo terraform apply...
+                - "terraform apply -input=false -no-color -auto-approve"
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-cbproject-tf-apply"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+################################################################################
+# Terraform CodePipeline
+################################################################################
+  PolicyTfPipeline:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-policy-pipeline"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "S3Artifact"
+            Effect: "Allow"
+            Action:
+              - "s3:GetObject*"
+              - "s3:GetBucket*"
+              - "s3:List*"
+              - "s3:DeleteObject*"
+              - "s3:PutObject"
+              - "s3:Abort*"
+            Resource:
+              - Fn::GetAtt: TfPipelineArtifactsStoreBucket.Arn
+              - Fn::Sub:
+                - "${BucketArn}/*"
+                - BucketArn:
+                    Fn::GetAtt: TfPipelineArtifactsStoreBucket.Arn
+          - Sid: "KmsKey"
+            Effect: "Allow"
+            Action:
+              - "kms:Decrypt"
+              - "kms:DescribeKey"
+              - "kms:Encrypt"
+              - "kms:ReEncrypt*"
+              - "kms:GenerateDataKey*"
+            Resource:
+              - Fn::GetAtt: KmsTfPipeline.Arn
+          - Sid: "CodeCommitRepo"
+            Effect: "Allow"
+            Action:
+              - "codecommit:GetBranch"
+              - "codecommit:GetCommit"
+              - "codecommit:UploadArchive"
+              - "codecommit:GetUploadArchiveStatus"
+              - "codecommit:CancelUploadArchive"
+            Resource:
+              - Ref: CodeCommitArn
+          - Sid: "CodeBuildProjects"
+            Effect: "Allow"
+            Action:
+              - "codebuild:BatchGetBuilds"
+              - "codebuild:StartBuild"
+              - "codebuild:StopBuild"
+            Resource:
+              - Fn::GetAtt: CbProjectTfsec.Arn
+              - Fn::GetAtt: CbProjectTfplan.Arn
+              - Fn::GetAtt: CbProjectTfapply.Arn
+
+  RoleTfPipelne:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-role-pipeline-tf"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "codepipeline.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - Ref: PolicyTfPipeline
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-role-pipeline-tf"
+        - Key: "EnvironmentIdentifier"
+          Value:
+            Ref: EnvironmentIdentifier
+
+  TfCodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name:
+        Fn::Sub: "${ServiceName}-${EnvironmentIdentifier}-pipeline-tf"
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt: KmsTfPipeline.Arn
+          Type: "KMS"
+        Location:
+          Ref: TfPipelineArtifactsStoreBucket
+        Type: "S3"
+      RoleArn:
+        Fn::GetAtt: RoleTfPipelne.Arn
+      Stages:
+        - Name: "Source"
+          Actions:
+            - Name: "Source"
+              ActionTypeId:
+                Category: "Source"
+                Owner: "AWS"
+                Provider: "CodeCommit"
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Ref: RepositoryName
+                BranchName:
+                  Ref: BranchName
+                PollForSourceChanges: false
+              OutputArtifacts:
+                - Name: "Source"
+              RoleArn:
+                Fn::GetAtt: RoleTfPipelne.Arn
+              RunOrder: 1
+        - Name: "tfsec"
+          Actions:
+            - Name: "tfsec"
+              Namespace: "TFSEC"
+              ActionTypeId:
+                Category: "Build"
+                Owner: "AWS"
+                Provider: "CodeBuild"
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CbProjectTfsec
+              InputArtifacts:
+                - Name: "Source"
+              RoleArn:
+                Fn::GetAtt: RoleTfPipelne.Arn
+        - Name: "Terraform"
+          Actions:
+            - Name: "Plan"
+              Namespace: "TERRAFORM"
+              ActionTypeId:
+                Category: "Build"
+                Owner: "AWS"
+                Provider: "CodeBuild"
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CbProjectTfplan
+              InputArtifacts:
+                - Name: "Source"
+              RoleArn:
+                Fn::GetAtt: RoleTfPipelne.Arn
+              RunOrder: 1
+            - Name: "Approve"
+              ActionTypeId:
+                Category: "Approval"
+                Owner: "AWS"
+                Provider: "Manual"
+                Version: "1"
+              Configuration:
+                CustomData: "Terraform plan review"
+                ExternalEntityLink:
+                  Fn::Sub: "https://${AWS::Region}.console.aws.amazon.com/codesuite/codebuild/${AWS::AccountId}/projects/#{TERRAFORM.BuildID}/build/#{TERRAFORM.BuildID}%3A#{TERRAFORM.BuildTag}/?region=${AWS::Region}"
+              RoleArn:
+                Fn::GetAtt: RoleTfPipelne.Arn
+              RunOrder: 2
+            - Name: "Apply"
+              ActionTypeId:
+                Category: "Build"
+                Owner: "AWS"
+                Provider: "CodeBuild"
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CbProjectTfapply
+              InputArtifacts:
+                - Name: "Source"
+              RoleArn:
+                Fn::GetAtt: RoleTfPipelne.Arn
+              RunOrder: 3

@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/ruby:slim-bullseye
+FROM public.ecr.aws/docker/library/ruby:3.1.2-slim-bullseye
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /api
 COPY ./api /api
-RUN bundle install
+RUN mkdir tmp/sockets && bundle install
 
 COPY startup.sh /usr/local/bin/startup.sh
 RUN chmod +x /usr/local/bin/startup.sh
 
-VOLUME ./backend/tmp
+VOLUME ./api/tmp
 
 CMD startup.sh

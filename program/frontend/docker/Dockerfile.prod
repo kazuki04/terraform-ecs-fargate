@@ -1,0 +1,13 @@
+FROM public.ecr.aws/docker/library/node:19.0-bullseye-slim
+
+WORKDIR /app
+
+COPY ./app/package.json .
+RUN npm install yarn
+
+COPY app .
+
+RUN yarn \
+ && NODE_ENV=production yarn build
+
+CMD ["yarn", "start"]
