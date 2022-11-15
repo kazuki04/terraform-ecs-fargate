@@ -78,7 +78,7 @@ resource "aws_codebuild_project" "api" {
           - imagedefinitions.json
       cache:
         paths:
-          - $CODEBUILD_SRC_DIR/program/backend/
+          - $CODEBUILD_SRC_DIR/program/backend/*/**
       phases:
         install:
           runtime-versions:
@@ -95,12 +95,11 @@ resource "aws_codebuild_project" "api" {
         build:
           commands:
             - echo Build phase...
-            - cd $CODEBUILD_SRC_DIR/program/backend
             - echo Build api ...
-            - docker build -t $API_REPOSITORY:latest -f docker/api/Dockerfile .
+            - docker build -t $API_REPOSITORY:latest -f $CODEBUILD_SRC_DIR/program/backend/docker/api/Dockerfile .
             - docker tag $API_REPOSITORY:latest $API_REPOSITORY:$IMAGE_TAG
             - echo Build nginx ...
-            - docker build -t $NGINX_REPOSITORY:latest -f docker/nginx/Dockerfile .
+            - docker build -t $NGINX_REPOSITORY:latest -f $CODEBUILD_SRC_DIR/program/backend/docker/nginx/Dockerfile .
             - docker tag $NGINX_REPOSITORY:latest $NGINX_REPOSITORY:$IMAGE_TAG
         post_build:
           commands:
@@ -198,7 +197,7 @@ resource "aws_codebuild_project" "frontend" {
           - imagedefinitions.json
       cache:
         paths:
-          - $CODEBUILD_SRC_DIR/program/frontend/
+          - $CODEBUILD_SRC_DIR/program/frontend/*/**
       phases:
         install:
           runtime-versions:
@@ -215,9 +214,8 @@ resource "aws_codebuild_project" "frontend" {
         build:
           commands:
             - echo Build phase...
-            - cd $CODEBUILD_SRC_DIR/program/frontend
             - echo Build frontend...
-            - docker build -t $FRONTEND_REPOSITORY:latest -f docker/Dockerfile.prod .
+            - docker build -t $FRONTEND_REPOSITORY:latest -f $CODEBUILD_SRC_DIR/program/backend/docker/Dockerfile.prod .
             - docker tag $FRONTEND_REPOSITORY:latest $FRONTEND_REPOSITORY:$IMAGE_TAG
         post_build:
           commands:
