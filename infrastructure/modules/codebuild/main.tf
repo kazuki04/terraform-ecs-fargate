@@ -21,7 +21,7 @@ resource "aws_codebuild_project" "api" {
 
   cache {
     type  = "LOCAL"
-    modes = ["LOCAL_DOCKER_LAYER_CACHE", "LOCAL_SOURCE_CACHE", "LOCAL_CUSTOM_CACHE"]
+    modes = ["LOCAL_DOCKER_LAYER_CACHE", "LOCAL_SOURCE_CACHE"]
   }
 
   environment {
@@ -76,9 +76,6 @@ resource "aws_codebuild_project" "api" {
       artifacts:
         files:
           - imagedefinitions.json
-      # cache:
-      #   paths:
-      #     - $CODEBUILD_SRC_DIR/program/backend/**/*
       phases:
         install:
           runtime-versions:
@@ -156,7 +153,7 @@ resource "aws_codebuild_project" "frontend" {
 
   cache {
     type  = "LOCAL"
-    modes = ["LOCAL_DOCKER_LAYER_CACHE", "LOCAL_SOURCE_CACHE", "LOCAL_CUSTOM_CACHE"]
+    modes = ["LOCAL_DOCKER_LAYER_CACHE", "LOCAL_SOURCE_CACHE"]
   }
 
   environment {
@@ -196,9 +193,6 @@ resource "aws_codebuild_project" "frontend" {
       artifacts:
         files:
           - imagedefinitions.json
-      # cache:
-      #   paths:
-      #     - $CODEBUILD_SRC_DIR/program/frontend/**/*
       phases:
         install:
           runtime-versions:
