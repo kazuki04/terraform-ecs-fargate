@@ -78,7 +78,7 @@ resource "aws_codebuild_project" "api" {
           - imagedefinitions.json
       cache:
         paths:
-          - $CODEBUILD_SRC_DIR/program/backend/*/**
+          - $CODEBUILD_SRC_DIR/program/backend/**/*
       phases:
         install:
           runtime-versions:
@@ -197,7 +197,7 @@ resource "aws_codebuild_project" "frontend" {
           - imagedefinitions.json
       cache:
         paths:
-          - $CODEBUILD_SRC_DIR/program/frontend/*/**
+          - $CODEBUILD_SRC_DIR/program/frontend/**/*
       phases:
         install:
           runtime-versions:
