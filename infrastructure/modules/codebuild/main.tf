@@ -96,10 +96,11 @@ resource "aws_codebuild_project" "api" {
           commands:
             - echo Build phase...
             - echo Build api ...
-            - docker build -t $API_REPOSITORY:latest -f $CODEBUILD_SRC_DIR/program/backend/docker/api/Dockerfile .
+            - cd $CODEBUILD_SRC_DIR/program/backend
+            - docker build -t $API_REPOSITORY:latest -f docker/api/Dockerfile .
             - docker tag $API_REPOSITORY:latest $API_REPOSITORY:$IMAGE_TAG
             - echo Build nginx ...
-            - docker build -t $NGINX_REPOSITORY:latest -f $CODEBUILD_SRC_DIR/program/backend/docker/nginx/Dockerfile .
+            - docker build -t $NGINX_REPOSITORY:latest -f docker/nginx/Dockerfile .
             - docker tag $NGINX_REPOSITORY:latest $NGINX_REPOSITORY:$IMAGE_TAG
         post_build:
           commands:
@@ -215,7 +216,8 @@ resource "aws_codebuild_project" "frontend" {
           commands:
             - echo Build phase...
             - echo Build frontend...
-            - docker build -t $FRONTEND_REPOSITORY:latest -f $CODEBUILD_SRC_DIR/program/backend/docker/Dockerfile.prod .
+            - cd $CODEBUILD_SRC_DIR/program/frontend
+            - docker build -t $FRONTEND_REPOSITORY:latest -f docker/Dockerfile.prod .
             - docker tag $FRONTEND_REPOSITORY:latest $FRONTEND_REPOSITORY:$IMAGE_TAG
         post_build:
           commands:
