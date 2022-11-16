@@ -76,9 +76,9 @@ resource "aws_codebuild_project" "api" {
       artifacts:
         files:
           - imagedefinitions.json
-      cache:
-        paths:
-          - $CODEBUILD_SRC_DIR/program/backend/**/*
+      # cache:
+      #   paths:
+      #     - $CODEBUILD_SRC_DIR/program/backend/**/*
       phases:
         install:
           runtime-versions:
@@ -195,9 +195,9 @@ resource "aws_codebuild_project" "frontend" {
       artifacts:
         files:
           - imagedefinitions.json
-      cache:
-        paths:
-          - $CODEBUILD_SRC_DIR/program/frontend/**/*
+      # cache:
+      #   paths:
+      #     - $CODEBUILD_SRC_DIR/program/frontend/**/*
       phases:
         install:
           runtime-versions:
