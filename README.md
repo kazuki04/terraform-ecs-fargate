@@ -57,3 +57,73 @@ AWS Fargateを使用したWebアプリケーションを構築するためのリ
 ## programディレクトリ
 インフラ以外のアプリケーションプログラムを配置するディレクトリ。
 バックエンドアプリケーションやフロントエンドアプリケーション、Lambdaで使用する関数などを配置する。
+
+# アーキテクチャ図
+## システム全体図
+![fargate_architecture](https://user-images.githubusercontent.com/63912049/201950118-49e39101-59dd-4561-90ef-30dc30c16601.png)
+
+
+
+### CloudFront
+CloudFrontでカスタムヘッダーを付与する。CloudFrontからALBへの通信に対して、AWS WAFでCloudFrontからのカスタムヘッダーが付与されているか否かをチェックする。
+
+### Application Load Balancer
+パスベースでAWS Fargateへのリクエストの振り分けを行なう。パスが「/api/*」のリクエストはバックエンド用のECS Service、それ以外のリクエストはフロントエンド用のECS Serviceへ振り分ける。
+
+### AWS Fargate
+リソースはプライベートサブネットに配置する。構成はバックエンド用、フロントエンド用のECSサービスとで分ける。
+
+### VPC endpoint
+インターフェイスエンドポイントはプライベートサブネットに配置する。AWS Fargateのサブネットに組み込むのではなく、egress用のサブネットとして別途管理する。
+
+### AWS CodeBuild
+AWS CodeBuildでプログラムのビルド、またはtrivyによるDockerイメージの脆弱性スキャンを行なう。パッケージのダウンロードなどを行なうため、パブリックサブネットに配置されているNAT Gatewayを通してインターネットアクセスを行なう。
+
+## Terrafrom CI/CD Pipeline
+![terraform_pipeline](https://user-images.githubusercontent.com/63912049/201527685-c89fa47a-dc46-4280-9281-d527210bf0d6.png)
+
+以下の理由から、Terraformで作成されるインフラリソースに関しては、CodePipelineからなるCI/CDパイプラインで作成・更新を行なう。
+
+■**理由**
+- インフラリソースの作成・更新をするにあたって、ユーザーに強い権限を与えたくない。(代わりに、CodeBuildプロジェクトに強い権限を与える)
+- インフラリソースの脆弱性チェックを確実に組み込みたい
+- インフラリソースの作成・更新フローに再現性をもたせ、自動化させたい
+
+TerraformでCI/CDパイプラインを作成すると、Terraformのbackend管理を行なうためのS3やDynamoDBリソースが必要になる。そのため、CI/CDパイプラインに関するリソースはCloudFormationで作成する。
+
+■**CI/CDフロー**
+1. CodeCommitからリソースの取得
+2. tfsecによるインフラリソースのセキュリティチェック
+3. terraform planによる実行プランの作成
+4. Approveフェーズ。terraform planにより作成された実行プランの確認
+5. terraform applyによってインフラリソースの作成・更新
+
+tfvarsファイルに関しては、CodeBuildのbuildspecにおいてS3から取得する。
+
+## ロギングアーキテクチャ
+![logging architecture](https://user-images.githubusercontent.com/63912049/201527539-6bf0d5c3-f5ea-494d-8db8-c1e694c076c9.png)
+
+ログ管理に関しては、fluentbitを使ったサイドカー構成とする。fluentbitを使ってアクセスログはS3バケット、エラーログはCloudWatchへ転送する。サービスがスケールしてCloudWatch Logsのログアーカイブコストが膨らむことを避けるためにS3バケットとCloudWatchへのログ振り分けを行なう。
+
+エラーログの振り分けは、ログレベルごとに異なるログストリームに転送する。
+バックエンドアプリケーションに関しては、以下のログレベルでログストリームを分類する。
+
+■**ログレベル**
+- FATAL
+- ERROR
+- WARN
+
+
+## メトリクス監視アーキテクチャ
+![monitoring_architecture](https://user-images.githubusercontent.com/63912049/201527600-27733fdc-f31a-41a3-96c1-490cfddc939c.png)
+
+Aurora、ECSに関してはメトリクスの監視を行なう。CloudWatch Alarmでアラートの管理を行なう。特定のメトリクスがアラートに状態になった場合、Amazon SNSを通してAWS LambdaでWebhookを利用してSlackへ通知を行なう。アラート状態が正常になった際も、同じく通知を行なう。
+
+■**メトリクス監視項目(閾値)**
+
+||CPU | Memory|
+|---|---|---|
+| Aurora | 80% | 95% |
+| ECS | 80% | 80% |
+
+Auroraは一時的に高負荷になる状況が十分に考えられるため、Memoryの閾値は95%とする。
