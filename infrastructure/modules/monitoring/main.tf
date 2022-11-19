@@ -321,7 +321,7 @@ resource "aws_cloudwatch_log_metric_filter" "postgresql_error" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "api_metric" {
-  for_each = local.log_levels
+  for_each = toset(local.log_levels)
 
   alarm_name        = "${var.service_name}-${var.environment_identifier}-cwalarm-ecs-api-${each.key}"
   alarm_description = "The alarm triggers when api ${each.key} metrics exceeds a threshold value"
