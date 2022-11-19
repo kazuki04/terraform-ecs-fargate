@@ -18,6 +18,7 @@ FROM public.ecr.aws/docker/library/ruby:3.1.2-slim-bullseye
 WORKDIR /api
 
 COPY --from=builder ./api /api
+COPY --from=builder /usr/local/bundle /usr/local/bundle
 COPY --from=builder /usr/local/bin/startup.sh /usr/local/bin/startup.sh
 RUN chmod +x /usr/local/bin/startup.sh
 
