@@ -320,7 +320,7 @@ resource "aws_cloudwatch_log_metric_filter" "postgresql_error" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "aurora_memory" {
+resource "aws_cloudwatch_metric_alarm" "api_metric" {
   for_each = local.log_levels
 
   alarm_name        = "${var.service_name}-${var.environment_identifier}-cwalarm-ecs-api-${each.key}"
