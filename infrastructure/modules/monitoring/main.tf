@@ -6,6 +6,7 @@ locals {
   task_definition_family_api           = element(split(":", element(split("/", var.ecs_taskdef_api_arn), 1)), 0)
   db_cluster_name                      = element(split(":", var.db_cluster_postgresql_arn), 6)
   db_t3_medium_memory_byte             = 1024 * 1024 * 4
+  log_levels                           = [ "fatal", "error" ]
 
   metric_query_ecs_cpu = [
     {
@@ -295,20 +296,6 @@ resource "aws_cloudwatch_log_metric_filter" "backend_error" {
   }
 }
 
-resource "aws_cloudwatch_log_metric_filter" "backend_warn" {
-  name           = "${var.service_name}-${var.environment_identifier}-metricfilter-backend-warn"
-  pattern        = <<PATTERN
-   "\"level\":\"WARN\""
-  PATTERN
-  log_group_name = local.backend_error_log_group_name
-
-  metric_transformation {
-    namespace = "${var.service_name}-${var.environment_identifier}-Monitoring"
-    name      = "${var.service_name}-${var.environment_identifier}-ecs-backend-warn"
-    value     = "1"
-  }
-}
-
 resource "aws_cloudwatch_log_metric_filter" "postgresql_fatal" {
   name           = "${var.service_name}-${var.environment_identifier}-metricfilter-postgresql-fatal"
   pattern        = "[(log = \"*FATAL*\") && (log != \"*the database system is starting up*\") && (log != \"*terminating connection due to administrator command*\")]"
@@ -330,5 +317,34 @@ resource "aws_cloudwatch_log_metric_filter" "postgresql_error" {
     namespace = "${var.service_name}-${var.environment_identifier}-Monitoring"
     name      = "${var.service_name}-${var.environment_identifier}-ecs-postgresql-error"
     value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "aurora_memory" {
+  for_each = local.log_levels
+
+  alarm_name        = "${var.service_name}-${var.environment_identifier}-cwalarm-ecs-api-${each.key}"
+  alarm_description = "The alarm triggers when api ${each.key} metrics exceeds a threshold value"
+  actions_enabled   = "true"
+
+  alarm_actions             = [var.sns_topic_alarm_id]
+  ok_actions                = [var.sns_topic_alarm_id]
+  insufficient_data_actions = [var.sns_topic_alarm_id]
+
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  threshold           = 1
+
+  datapoints_to_alarm = 1
+  treat_missing_data  = "missing"
+
+  namespace    = "${var.service_name}-${var.environment_identifier}-Monitoring"
+  metric_name  = "fargate-sample-dev-ecs-backend-${each.key}"
+  unit         = "None"
+  period       = 300
+  statistic    = "Average"
+
+  tags = {
+    Name = "${var.service_name}-${var.environment_identifier}-cwalarm-ecs-api-${each.key}"
   }
 }
