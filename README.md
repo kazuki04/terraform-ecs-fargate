@@ -111,8 +111,6 @@ tfvarsファイルに関しては、CodeBuildのbuildspecにおいてS3から取
 ■**ログレベル**
 - FATAL
 - ERROR
-- WARN
-
 
 ## メトリクス監視アーキテクチャ
 ![monitoring_architecture](https://user-images.githubusercontent.com/63912049/201527600-27733fdc-f31a-41a3-96c1-490cfddc939c.png)
@@ -126,4 +124,17 @@ Aurora、ECSに関してはメトリクスの監視を行なう。CloudWatch Ala
 | Aurora | 80% | 95% |
 | ECS | 80% | 80% |
 
+
 Auroraは一時的に高負荷になる状況が十分に考えられるため、Memoryの閾値は95%とする。
+
+また、以下ログレベルのログに関しては、メトリクスフィルターを作成する。
+
+■**アラート通知対象のメトリクスフィルター**
+- ECS バックエンドアプリケーション
+  - FATAL
+  - ERROR
+- PostgreSQL
+  - FATAL
+  - ERROR
+
+上記のメトリクスフィルターのメトリクス値が1を超えた場合もエラー通知を行う。
