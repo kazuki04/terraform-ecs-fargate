@@ -1,0 +1,10 @@
+# Ignore everything
+**
+
+# Allowed files
+!app
+!.next/**
+!public/**
+!next.config.js
+!package.json
+!yarn.lock

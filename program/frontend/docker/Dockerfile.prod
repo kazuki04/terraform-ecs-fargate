@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:19.0-bullseye-slim
+FROM public.ecr.aws/docker/library/node:19.0-bullseye-slim AS builder
 
 WORKDIR /app
 
@@ -9,5 +9,11 @@ COPY app .
 
 RUN yarn \
  && NODE_ENV=production yarn build
+
+FROM public.ecr.aws/docker/library/node:19.0-bullseye-slim
+
+WORKDIR /app
+
+COPY --from=builder app .
 
 CMD ["yarn", "start"]
